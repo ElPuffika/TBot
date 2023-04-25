@@ -1,5 +1,5 @@
 import requests
-import json
+
 
 def get_nearest_metro(lat, lng):
     url = "http://geocode-maps.yandex.ru/1.x/"
@@ -19,7 +19,7 @@ def get_nearest_metro(lat, lng):
     except Exception:
         return 0
 
-near_metro = get_nearest_metro(55.846456, 37.562658)
+
 def get_coords(place):
     url = "http://geocode-maps.yandex.ru/1.x/"
     params = {
