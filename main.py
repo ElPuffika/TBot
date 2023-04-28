@@ -4,7 +4,7 @@ from telegram import ReplyKeyboardMarkup, KeyboardButton
 from function.yandex_maps_api import get_nearest_metro, get_route_image, get_coords
 from function.yandex_weather_api import weather
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
-from config import BOT_TOKEN
+from function.config import BOT_TOKEN
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
 logger = logging.getLogger(__name__)
