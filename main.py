@@ -1,7 +1,8 @@
 import logging
 import sqlite3
-from telegram import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram import ReplyKeyboardMarkup, KeyboardButton
 from function.yandex_maps_api import get_nearest_metro, get_route_image, get_coords
+from function.yandex_weather_api import weather
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 from config import BOT_TOKEN
 
@@ -26,7 +27,8 @@ def start(update, context):
 
     texth = f"Привет, {user_fname}! меня зовут TBot. Я многофункциональный бот-помощник." \
             f"Выберите необходимое действие.\n\n" \
-            f"— Ближайшее метро (/location)."
+            f"— Ближайшее метро: /location.\n" \
+            f"— Погода: /weather [город]."
 
     if result:
         if result[1] != user_fname:
@@ -34,7 +36,7 @@ def start(update, context):
             context.bot.send_message(chat_id=user_id, text=f"Вы изменили имя вашего профиля с {result[1]} "
                                                            f"на {user_fname}. Изменения внесены в базу данных.")
             conn.commit()
-            cursor.execute('UPDATE users SET username = ? WHERE id = ?', (user_fname, user_id))
+            cursor.execute('UPDATE users SET username = ? AND scores = ? WHERE id = ?', (user_fname, 0, user_id))
             conn.commit()
         else:
             context.bot.send_message(chat_id=user_id, text=texth)
@@ -42,7 +44,7 @@ def start(update, context):
         context.user_data['id'] = user_id
         context.user_data['username'] = user_fname
 
-        cursor.execute(f"INSERT INTO users VALUES ({user_id}, '{user_fname}')")
+        cursor.execute(f"INSERT INTO users VALUES ({user_id}, '{user_fname}', 0)")
         conn.commit()
 
         context.bot.send_message(chat_id=user_id, text=texth)
@@ -51,14 +53,14 @@ def start(update, context):
 def menu(update, context):
     update.message.reply_text(text=f'Вы находитесь в меню.'
                                    f"Выберите необходимое действие.\n\n"
-                                   f"— Ближайшее метро (/location).")
+                                   f"— Ближайшее метро: /location.\n"
+                                   f"— Погода в вашем регионе: /weather [город].")
 
 
 def location(update, context):
     button = KeyboardButton(text="Отправить местоположение", request_location=True)
     reply_markup = ReplyKeyboardMarkup([[button]], resize_keyboard=True, one_time_keyboard=True)
     update.message.reply_text(text="Пожалуйста, отправьте свое местоположение", reply_markup=reply_markup)
-
 
 def get_location(update, context):
     message = update.message
@@ -77,15 +79,37 @@ def get_location(update, context):
         update.message.reply_text('Рядом с вами метро не найдено. Попробуйте указать другую геопозицию.')
 
 
+def get_weather(update, context):
+    try:
+        message = update.message
+        coords = get_coords((message['text'].replace('/weather ', '')))
+        if coords == 0:
+            update.message.reply_text('Не удалось получить информацию о погоде.\n'
+                                  'Попробуйте верно ввести команду: /weather [Ваш город]')
+        else:
+            update.message.reply_text(weather(coords, (message['text'].replace('/weather ', ''))))
+    except Exception as e:
+        update.message.reply_text('Не удалось получить информацию о погоде в вашем регионе.\n'
+                                  'Попробуйте верно ввести команду: /weather [Ваш город]')
+
+
 def main():
     updater = Updater(BOT_TOKEN, use_context=True)
     dispatcher = updater.dispatcher
+
     dispatcher.add_handler(CommandHandler('start', start))
+
     menu_handler = CommandHandler('menu', menu)
     dispatcher.add_handler(menu_handler)
+
     location_handler = CommandHandler('location', location)
     dispatcher.add_handler(location_handler)
+
     dispatcher.add_handler(MessageHandler(Filters.location, get_location))
+
+    weather_handler = CommandHandler('weather', get_weather)
+    dispatcher.add_handler(weather_handler)
+
     updater.start_polling()
     updater.idle()
 
